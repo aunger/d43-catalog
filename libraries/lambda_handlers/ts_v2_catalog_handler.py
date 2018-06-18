@@ -97,6 +97,7 @@ class TsV2CatalogHandler(InstanceHandler):
             return True
 
         # retrieve the latest catalog
+        self.logger.debug("Catalog url {0}".format(source_status['catalog_url']))
         catalog_content = self.get_url(source_status['catalog_url'], True)
         if not catalog_content:
             self.logger.error("{0} does not exist".format(source_status['catalog_url']))

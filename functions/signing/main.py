@@ -4,7 +4,7 @@ import logging
 
 from libraries.tools.lambda_utils import wipe_temp
 from libraries.lambda_handlers.signing_handler import SigningHandler
-from libraries.tools.signer import Signer, ENC_PRIV_PEM_PATH
+from libraries.tools.signer import Signer, ENC_PRIV_PEM_PATH, PUB_KEY_PATH
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -19,6 +19,6 @@ def handle(event, context):
     """
     wipe_temp(ignore_errors=True)
     global logger
-    signer = Signer(ENC_PRIV_PEM_PATH)
+    signer = Signer(ENC_PRIV_PEM_PATH, PUB_KEY_PATH)
     handler = SigningHandler(event, context, logger, signer)
     handler.run()

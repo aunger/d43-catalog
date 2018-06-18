@@ -222,3 +222,15 @@ python -m unittest discover -s tests
 ```
 
 [Door43 Catalog]:https://git.door43.org/Door43-Catalog
+
+
+## DB Info
+
+A dynamodb instance needs to exist and the following table need to exist
+
+<prefix>d43-catalog-in-progress with key repo_name (string)
+<prefix>d43-catalog-errors with key lambda (string)
+<prefix>d43-catalog-running with key lambda (string)
+<prefix>d43-catalog-status with key api_version (string)
+
+In the case that you are using api gateway prefix will be the stage name.
