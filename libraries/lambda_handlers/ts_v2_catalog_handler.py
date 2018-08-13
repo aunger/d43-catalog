@@ -39,6 +39,7 @@ class TsV2CatalogHandler(InstanceHandler):
         self.cdn_url = self.retrieve(env_vars, 'cdn_url', 'Environment Vars').rstrip('/')
         self.from_email = self.retrieve(env_vars, 'from_email', 'Environment Vars')
         self.to_email = self.retrieve(env_vars, 'to_email', 'Environment Vars')
+        self.catalog_db = self.retrieve(env_vars, 'catalog_db', 'Environment Vars')
         self.logger = logger # type: logging._loggerClass
         if 's3_handler' in kwargs:
             self.cdn_handler = kwargs['s3_handler']
@@ -47,7 +48,10 @@ class TsV2CatalogHandler(InstanceHandler):
         if 'dynamodb_handler' in kwargs:
             self.db_handler = kwargs['dynamodb_handler']
         else:
-            self.db_handler = DynamoDBHandler('{}d43-catalog-status'.format(self.stage_prefix())) # pragma: no cover
+            if self.catalog_db is None:
+                self.db_handler = DynamoDBHandler('{}d43-catalog-status'.format(self.stage_prefix())) # pragma: no cover
+            else:
+                self.db_handler = DynamoDBHandler(self.catalog_db) # pragma: no cover
         if 'url_handler' in kwargs:
             self.get_url = kwargs['url_handler']
         else:
@@ -571,7 +575,7 @@ class TsV2CatalogHandler(InstanceHandler):
                 process_id = '_'.join([lid, rid, pid])
 
                 if process_id not in self.status['processed']:
-                    self.logger.debug('Processing {}'.format(process_id))
+                    self.logger.debug('Processing usfm for {}'.format(process_id))
 
                     # copy usfm project file
                     usfm_dir = os.path.join(self.temp_dir, '{}_usfm'.format(process_id))
