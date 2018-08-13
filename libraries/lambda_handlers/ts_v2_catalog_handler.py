@@ -39,7 +39,12 @@ class TsV2CatalogHandler(InstanceHandler):
         self.cdn_url = self.retrieve(env_vars, 'cdn_url', 'Environment Vars').rstrip('/')
         self.from_email = self.retrieve(env_vars, 'from_email', 'Environment Vars')
         self.to_email = self.retrieve(env_vars, 'to_email', 'Environment Vars')
-        self.catalog_db = self.retrieve(env_vars, 'catalog_db', 'Environment Vars')
+
+        if 'catalog_db' in env_vars:
+            self.catalog_db = env_vars['catalog_db']
+        else:
+            self.catalog_db = None
+
         self.logger = logger # type: logging._loggerClass
         if 's3_handler' in kwargs:
             self.cdn_handler = kwargs['s3_handler']
