@@ -230,6 +230,8 @@ class TsV2CatalogHandler(InstanceHandler):
                     modified = make_legacy_date(rc_format['modified'])
                     rc_type = get_rc_type(rc_format)
 
+                    print 'Resource container type is {}'.format(rc_type)
+
                     if modified is None:
                         modified = time.strftime('%Y%m%d')
                         self.logger.warning('Could not find date modified for {}_{}_{} from "{}"'.format(lid, rid, pid, rc_format['modified']))
