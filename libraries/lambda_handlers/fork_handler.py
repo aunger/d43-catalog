@@ -20,6 +20,7 @@ class ForkHandler(InstanceHandler):
         self.gogs_org = self.retrieve(self.stage_vars, 'gogs_org', 'Environment Vars')
         self.from_email = self.retrieve(self.stage_vars, 'from_email', 'Environment Vars')
         self.to_email = self.retrieve(self.stage_vars, 'to_email', 'Environment Vars')
+        self.stage = self.retrieve(self.stage_vars, 'stage', 'Environment Vars')
         if 'dynamodb_handler' in kwargs:
             self.progress_table = kwargs['dynamodb_handler']
         else:
@@ -67,7 +68,7 @@ class ForkHandler(InstanceHandler):
             try:
                 self.logger.info('Simulating Webhook for {}'.format(repo.full_name))
                 client.invoke(
-                    FunctionName='{}d43-catalog_webhook'.format(self.stage_prefix()),
+                    FunctionName='{}d43-catalog_webhook'.format(self.stage),
                     InvocationType='Event',
                     Payload=json.dumps(payload)
                 )
