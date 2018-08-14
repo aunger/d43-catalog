@@ -98,7 +98,7 @@ class ForkHandler(InstanceHandler):
                 }],
                 "repository": {
                     "owner": {
-                        "username": "Door43-Catalog"
+                        "username": self.gogs_org
                     },
                     "name": repo.name
                 }
