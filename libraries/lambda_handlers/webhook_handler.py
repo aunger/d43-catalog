@@ -120,7 +120,7 @@ class WebhookHandler(Handler):
             raise Exception('Only accepting webhooks from {0} but found {1}'.format(self.gogs_url, self.commit_url)) # pragma: no cover
 
         if self.repo_owner.lower() != self.gogs_org.lower():
-            raise Exception("Only accepting repos from the {0} organization. Organization sent is {1}".format(self.gogs_org, self.repo_owner) # pragma: no cover
+            raise Exception("Only accepting repos from the {0} organization. Organization sent is {1}".format(self.gogs_org, self.repo_owner)) # pragma: no cover
 
         # skip un-merged pull requests
         if 'pull_request' in self.repo_commit:
