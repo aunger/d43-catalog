@@ -186,7 +186,8 @@ class SigningHandler(InstanceHandler):
         build_rules = get_build_rules(format, 'signing')
 
         # TRICKY: allow dev environments to download from prod environment
-        valid_hosts = [self.cdn_bucket]
+        # RS: I added the s3 bucket here because it isn't yet accessible via urls
+        valid_hosts = [self.cdn_bucket, self.cdn_bucket + ".s3.us-east-2.amazonaws.com"]
         if self.stage_prefix():
             if not self.cdn_bucket.startswith(self.stage_prefix()):
                 self.logger.warning('Expected `cdn_bucket` to begin with the stage prefix ({}) but found {}'.format(self.stage_prefix(), self.cdn_bucket))
@@ -208,6 +209,7 @@ class SigningHandler(InstanceHandler):
             # This allows media to be hosted on third party servers
             format['signature'] = '' #'{}.sig'.format(format['url'])
             self.logger.warning('cannot sign files outside of the cdn: {}'.format(format['url']))
+            self.logger.warning('valid hosts are: {}'.format(", ".join(valid_hosts)))
             return (True, True)
 
         try:

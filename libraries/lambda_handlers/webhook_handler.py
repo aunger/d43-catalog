@@ -54,6 +54,7 @@ class WebhookHandler(Handler):
         if 'dynamodb_handler' in kwargs:
             self.db_handler = kwargs['dynamodb_handler']
         else:
+            self.logger.debug("Creating Dynamodb handler pointing to {}d43-catalog-in-progress".format(self.stage_prefix()))
             self.db_handler = DynamoDBHandler('{}d43-catalog-in-progress'.format(self.stage_prefix())) # pragma: no cover
 
         if 's3_handler' in kwargs:
@@ -119,7 +120,7 @@ class WebhookHandler(Handler):
             raise Exception('Only accepting webhooks from {0} but found {1}'.format(self.gogs_url, self.commit_url)) # pragma: no cover
 
         if self.repo_owner.lower() != self.gogs_org.lower():
-            raise Exception("Only accepting repos from the {0} organization".format(self.gogs_org)) # pragma: no cover
+            raise Exception("Only accepting repos from the {0} organization. Organization sent is {1}".format(self.gogs_org, self.repo_owner)) # pragma: no cover
 
         # skip un-merged pull requests
         if 'pull_request' in self.repo_commit:
@@ -136,6 +137,7 @@ class WebhookHandler(Handler):
                     self.logger.debug('Uploading files for "{}"'.format(self.repo_name))
                     for upload in data['uploads']:
                         self.logger.debug('^...{}'.format(upload['key']))
+                        self.logger.debug("Uploading to {0} {1}".format(upload["path"], upload["key"]))
                         self.s3_handler.upload_file(upload['path'], upload['key'])
                     del data['uploads']
                 else:

@@ -20,13 +20,14 @@ from d43_aws_tools import S3Handler, DynamoDBHandler
 from libraries.tools.file_utils import read_file, download_rc
 from libraries.tools.legacy_utils import index_obs
 from libraries.tools.url_utils import download_file, get_url, url_exists
-from libraries.tools.ts_v2_utils import convert_rc_links, build_json_source_from_usx, make_legacy_date, \
+from libraries.tools.ts_v2_utils import convert_rc_links, build_json_source_from_usx, make_legacy_date,\
     max_modified_date, get_rc_type, build_usx, prep_data_upload, index_tn_rc
 
 from libraries.lambda_handlers.instance_handler import InstanceHandler
 
 
 class TsV2CatalogHandler(InstanceHandler):
+
     cdn_root_path = 'v2/ts'
     api_version = 'ts.2'
 
@@ -38,27 +39,36 @@ class TsV2CatalogHandler(InstanceHandler):
         self.cdn_url = self.retrieve(env_vars, 'cdn_url', 'Environment Vars').rstrip('/')
         self.from_email = self.retrieve(env_vars, 'from_email', 'Environment Vars')
         self.to_email = self.retrieve(env_vars, 'to_email', 'Environment Vars')
-        self.logger = logger  # type: logging._loggerClass
+
+        if 'catalog_db' in env_vars:
+            self.catalog_db = env_vars['catalog_db']
+        else:
+            self.catalog_db = None
+
+        self.logger = logger # type: logging._loggerClass
         if 's3_handler' in kwargs:
             self.cdn_handler = kwargs['s3_handler']
         else:
-            self.cdn_handler = S3Handler(self.cdn_bucket)  # pragma: no cover
+            self.cdn_handler = S3Handler(self.cdn_bucket) # pragma: no cover
         if 'dynamodb_handler' in kwargs:
             self.db_handler = kwargs['dynamodb_handler']
         else:
-            self.db_handler = DynamoDBHandler('{}d43-catalog-status'.format(self.stage_prefix()))  # pragma: no cover
+            if self.catalog_db is None:
+                self.db_handler = DynamoDBHandler('{}d43-catalog-status'.format(self.stage_prefix())) # pragma: no cover
+            else:
+                self.db_handler = DynamoDBHandler(self.catalog_db) # pragma: no cover
         if 'url_handler' in kwargs:
             self.get_url = kwargs['url_handler']
         else:
-            self.get_url = get_url  # pragma: no cover
+            self.get_url = get_url # pragma: no cover
         if 'download_handler' in kwargs:
             self.download_file = kwargs['download_handler']
         else:
-            self.download_file = download_file  # pragma: no cover
+            self.download_file = download_file # pragma: no cover
         if 'url_exists_handler' in kwargs:
             self.url_exists = kwargs['url_exists_handler']
         else:
-            self.url_exists = url_exists  # pragma: no cover
+            self.url_exists = url_exists # pragma: no cover
 
         self.temp_dir = tempfile.mkdtemp('', 'tsv2', None)
 
@@ -96,6 +106,7 @@ class TsV2CatalogHandler(InstanceHandler):
             return True
 
         # retrieve the latest catalog
+        self.logger.debug("Catalog url {0}".format(source_status['catalog_url']))
         catalog_content = self.get_url(source_status['catalog_url'], True)
         if not catalog_content:
             self.logger.error("{0} does not exist".format(source_status['catalog_url']))
@@ -179,9 +190,8 @@ class TsV2CatalogHandler(InstanceHandler):
                                 if process_id not in self.status['processed']:
                                     self.logger.debug('Processing {}'.format(process_id))
                                     obs_json = index_obs(lid, rid, format, self.temp_dir, self.download_file)
-                                    upload = prep_data_upload(
-                                        '{}/{}/{}/v{}/source.json'.format(pid, lid, rid, res['version']),
-                                        obs_json, self.temp_dir)
+                                    upload = prep_data_upload('{}/{}/{}/v{}/source.json'.format(pid, lid, rid, res['version']),
+                                                                   obs_json, self.temp_dir)
                                     self._upload(upload)
                                     finished_processes[process_id] = []
                                 else:
@@ -212,8 +222,7 @@ class TsV2CatalogHandler(InstanceHandler):
                             if finished_processes:
                                 self.status['processed'].update(finished_processes)
                                 self.status['timestamp'] = time.strftime("%Y-%m-%dT%H:%M:%SZ")
-                                self.db_handler.update_item({'api_version': TsV2CatalogHandler.api_version},
-                                                            self.status)
+                                self.db_handler.update_item({'api_version': TsV2CatalogHandler.api_version}, self.status)
 
                     if not rc_format:
                         raise Exception('Could not find a format for {}_{}_{}'.format(lid, rid, pid))
@@ -221,11 +230,11 @@ class TsV2CatalogHandler(InstanceHandler):
                     modified = make_legacy_date(rc_format['modified'])
                     rc_type = get_rc_type(rc_format)
 
+                    print 'Resource container type is {}'.format(rc_type)
+
                     if modified is None:
                         modified = time.strftime('%Y%m%d')
-                        self.logger.warning('Could not find date modified for {}_{}_{} from "{}"'.format(lid, rid, pid,
-                                                                                                         rc_format[
-                                                                                                             'modified']))
+                        self.logger.warning('Could not find date modified for {}_{}_{} from "{}"'.format(lid, rid, pid, rc_format['modified']))
 
                     if rc_type == 'book' or rc_type == 'bundle':
                         self._build_catalog_node(cat_dict, lang, res, project, modified)
@@ -278,21 +287,21 @@ class TsV2CatalogHandler(InstanceHandler):
                 api_uploads.append(prep_data_upload('{}/{}/resources.json'.format(pid, lid), res_cat, self.temp_dir))
 
                 del lang['_res']
-                if ('project' in lang):
+                if('project' in lang):
                     # skip empty artifacts
                     lang_cat.append(lang)
                 else:
                     self.logger.warning('Excluding empty language artifact in {}'.format(pid))
             api_uploads.append(prep_data_upload('{}/languages.json'.format(pid), lang_cat, self.temp_dir))
 
-            del project['_langs']
+            del  project['_langs']
             root_cat.append(project)
         catalog_upload = prep_data_upload('catalog.json', root_cat, self.temp_dir)
         api_uploads.append(catalog_upload)
         # TRICKY: also upload to legacy path for backwards compatibility
         api_uploads.append({
-            'key': '/ts/txt/2/catalog.json',
-            'path': catalog_upload['path']
+            'key':'/ts/txt/2/catalog.json',
+            'path':catalog_upload['path']
         })
 
         # upload files
@@ -362,9 +371,8 @@ class TsV2CatalogHandler(InstanceHandler):
             if not rc_dir: return {}
 
             tn_uploads = index_tn_rc(lid=lid,
-                                     temp_dir=self.temp_dir,
-                                     rc_dir=rc_dir,
-                                     reporter=self)
+                                  temp_dir=self.temp_dir,
+                                  rc_dir=rc_dir)
 
         return tn_uploads
 
@@ -436,6 +444,7 @@ class TsV2CatalogHandler(InstanceHandler):
 
         return tq_uploads
 
+
     def _index_words_files(self, lid, rid, format, process_id):
         """
         Returns an array of markdown files found in a tW dictionary
@@ -449,8 +458,7 @@ class TsV2CatalogHandler(InstanceHandler):
         obs_example_re = re.compile('\_*\[([^\[\]]+)\]\(([^\(\)]+)\)_*(.*)', re.UNICODE | re.IGNORECASE)
         block_re = re.compile('^##', re.MULTILINE | re.UNICODE)
         word_links_re = re.compile('\[([^\[\]]+)\]\(\.\.\/(kt|other)\/([^\(\)]+)\.md\)', re.UNICODE | re.IGNORECASE)
-        ta_html_re = re.compile('(<a\s+href="(:[a-z-_0-9]+:ta:vol\d:[a-z-\_]+:[a-z-\_]+)"\s*>([^<]+)<\/a>)',
-                                re.UNICODE | re.IGNORECASE)
+        ta_html_re = re.compile('(<a\s+href="(:[a-z-_0-9]+:ta:vol\d:[a-z-\_]+:[a-z-\_]+)"\s*>([^<]+)<\/a>)', re.UNICODE | re.IGNORECASE)
 
         words = []
         format_str = format['format']
@@ -519,7 +527,7 @@ class TsV2CatalogHandler(InstanceHandler):
                         word_content = '##'.join(cleaned_blocks)
 
                         # find all tW links and use them in related words
-                        related_words = [w[2] for w in word_links_re.findall(word_content)]
+                        related_words = [w[2] for w in word_links_re.findall(word_content) ]
 
                         # convert links to legacy form. TODO: we should convert links after converting to html so we don't have to do it twice.
                         word_content = convert_rc_links(word_content)
@@ -532,8 +540,7 @@ class TsV2CatalogHandler(InstanceHandler):
                             word_content = word_content.replace(ta_link[0], new_link)
 
                         words.append({
-                            'aliases': [a.strip() for a in title.split(',') if
-                                        a.strip() != word_id and a.strip() != title.strip()],
+                            'aliases': [a.strip() for a in title.split(',') if a.strip() != word_id and a.strip() != title.strip()],
                             'cf': related_words,
                             'def': word_content,
                             'def_title': def_title.rstrip(':'),
@@ -575,7 +582,7 @@ class TsV2CatalogHandler(InstanceHandler):
                 process_id = '_'.join([lid, rid, pid])
 
                 if process_id not in self.status['processed']:
-                    self.logger.debug('Processing {}'.format(process_id))
+                    self.logger.debug('Processing usfm for {}'.format(process_id))
 
                     # copy usfm project file
                     usfm_dir = os.path.join(self.temp_dir, '{}_usfm'.format(process_id))
@@ -591,10 +598,8 @@ class TsV2CatalogHandler(InstanceHandler):
                     # convert USX to JSON
                     path = os.path.normpath(os.path.join(usx_dir, '{}.usx'.format(pid.upper())))
                     source = build_json_source_from_usx(path, format['modified'], self)
-                    upload = prep_data_upload('{}/{}/{}/v{}/source.json'.format(pid, lid, rid, resource['version']),
-                                              source['source'], self.temp_dir)
-                    self.cdn_handler.upload_file(upload['path'],
-                                                 '{}/{}'.format(TsV2CatalogHandler.cdn_root_path, upload['key']))
+                    upload = prep_data_upload('{}/{}/{}/v{}/source.json'.format(pid, lid, rid, resource['version']), source['source'], self.temp_dir)
+                    self.cdn_handler.upload_file(upload['path'], '{}/{}'.format(TsV2CatalogHandler.cdn_root_path, upload['key']))
 
                     self.status['processed'][process_id] = []
                     self.status['timestamp'] = time.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -715,7 +720,7 @@ class TsV2CatalogHandler(InstanceHandler):
 
         # resource
         res = catalog[pid]['_langs'][lid]['_res'][rid]
-        r_modified = max_modified_date(res, modified)  # TRICKY: dates bubble up from project
+        r_modified = max_modified_date(res, modified) # TRICKY: dates bubble up from project
         comments = ''  # TRICKY: comments are not officially supported in RCs but we use them if available
         if 'comment' in resource: comments = resource['comment']
 
@@ -724,8 +729,8 @@ class TsV2CatalogHandler(InstanceHandler):
         if rid != 'obs':
             chunks_url = 'https://api.unfoldingword.org/bible/txt/1/{}/chunks.json'.format(pid)
             # if not self.url_exists(chunks_url) and 'chunks_url' in project:
-            # Use the v3 api chunks url if the legacy version cannot be found
-            # chunks_url = project['chunks_url']
+                # Use the v3 api chunks url if the legacy version cannot be found
+                # chunks_url = project['chunks_url']
 
         source_url = '{}/{}/{}/{}/{}/v{}/source.json?date_modified={}'.format(
             self.cdn_url,
@@ -781,10 +786,10 @@ class TsV2CatalogHandler(InstanceHandler):
 
         # language
         lang = catalog[pid]['_langs'][lid]
-        l_modified = max_modified_date(lang['language'], r_modified)  # TRICKY: dates bubble up from resource
+        l_modified = max_modified_date(lang['language'], r_modified) # TRICKY: dates bubble up from resource
         description = ''
         if rid == 'obs': description = resource['description']
-        project_meta = list(project['categories'])  # default to category ids
+        project_meta = list(project['categories']) # default to category ids
         if 'category_labels' in language:
             project_meta = []
             for cat_id in project['categories']:
@@ -805,9 +810,7 @@ class TsV2CatalogHandler(InstanceHandler):
                 'meta': project_meta,
                 'name': project['title']
             },
-            'res_catalog': '{}/{}/{}/{}/resources.json?date_modified={}'.format(self.cdn_url,
-                                                                                TsV2CatalogHandler.cdn_root_path, pid,
-                                                                                lid, l_modified)
+            'res_catalog': '{}/{}/{}/{}/resources.json?date_modified={}'.format(self.cdn_url, TsV2CatalogHandler.cdn_root_path, pid, lid, l_modified)
         }
         if 'ulb' == rid or 'udb' == rid:
             cat_lang['project']['sort'] = '{}'.format(project['sort'])
@@ -817,9 +820,7 @@ class TsV2CatalogHandler(InstanceHandler):
         p_modified = max_modified_date(catalog[pid], l_modified)
         catalog[pid].update({
             'date_modified': p_modified,
-            'lang_catalog': '{}/{}/{}/languages.json?date_modified={}'.format(self.cdn_url,
-                                                                              TsV2CatalogHandler.cdn_root_path, pid,
-                                                                              p_modified),
+            'lang_catalog': '{}/{}/{}/languages.json?date_modified={}'.format(self.cdn_url, TsV2CatalogHandler.cdn_root_path, pid, p_modified),
             'meta': project['categories'],
             'slug': pid,
             'sort': '{}'.format(project['sort']).zfill(2)
