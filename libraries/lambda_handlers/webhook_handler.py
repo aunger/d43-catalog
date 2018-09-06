@@ -43,6 +43,9 @@ class WebhookHandler(Handler):
         self.api_url = self.retrieve(env_vars, 'api_url', 'Environment Vars')
         self.repo_commit = self.retrieve(event, 'body-json', 'payload')
         self.api_version = self.retrieve(env_vars, 'version')
+
+        self.in_progress_db = self.retrieve_with_default(env_vars, 'in_progress_db', '{}d43-catalog-in-progress'.format(self.stage_prefix()))
+
         if 'pull_request' in self.repo_commit:
             self.__parse_pull_request(self.repo_commit)
         else:
@@ -54,8 +57,8 @@ class WebhookHandler(Handler):
         if 'dynamodb_handler' in kwargs:
             self.db_handler = kwargs['dynamodb_handler']
         else:
-            self.logger.debug("Creating Dynamodb handler pointing to {}d43-catalog-in-progress".format(self.stage_prefix()))
-            self.db_handler = DynamoDBHandler('{}d43-catalog-in-progress'.format(self.stage_prefix())) # pragma: no cover
+            self.logger.debug("Creating Dynamodb handler pointing to {}".format(self.in_progress_db))
+            self.db_handler = DynamoDBHandler(self.in_progress_db) # pragma: no cover
 
         if 's3_handler' in kwargs:
             self.s3_handler = kwargs['s3_handler']

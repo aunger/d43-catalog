@@ -28,15 +28,19 @@ class CatalogHandler(InstanceHandler):
         self.from_email = self.retrieve(env_vars, 'from_email')
         self.api_version = self.retrieve(env_vars, 'version')
 
+        in_progress_db = self.retrieve_with_default(env_vars, 'in_progress_db', '{}d43-catalog-in-progress'.format(self.stage_prefix()))
+        status_db = self.retrieve_with_default(env_vars, 'status_db', '{}d43-catalog-status'.format(self.stage_prefix()))
+        errors_db = self.retrieve_with_default(env_vars, 'errors_db', '{}d43-catalog-errors'.format(self.stage_prefix()))
+
         if 'dynamodb_handler' in kwargs:
             db_handler = kwargs['dynamodb_handler']
-            self.progress_table = db_handler('{}d43-catalog-in-progress'.format(self.stage_prefix()))
-            self.status_table = db_handler('{}d43-catalog-status'.format(self.stage_prefix()))
-            self.errors_table = db_handler('{}d43-catalog-errors'.format(self.stage_prefix()))
+            self.progress_table = db_handler(in_progress_db)
+            self.status_table = db_handler(status_db)
+            self.errors_table = db_handler(errors_db)
         else:
-            self.progress_table = DynamoDBHandler('{}d43-catalog-in-progress'.format(self.stage_prefix())) # pragma: no cover
-            self.status_table = DynamoDBHandler('{}d43-catalog-status'.format(self.stage_prefix())) # pragma: no cover
-            self.errors_table = DynamoDBHandler('{}d43-catalog-errors'.format(self.stage_prefix())) # pragma: no cover
+            self.progress_table = DynamoDBHandler(in_progress_db) # pragma: no cover
+            self.status_table = DynamoDBHandler(status_db) # pragma: no cover
+            self.errors_table = DynamoDBHandler(errors_db) # pragma: no cover
 
         self.catalog = {
             "languages": []
