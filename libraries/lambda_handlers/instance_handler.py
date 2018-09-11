@@ -1,5 +1,6 @@
 # coding=utf-8
 
+import json
 from __future__ import unicode_literals, print_function
 from abc import ABCMeta
 from libraries.lambda_handlers.handler import Handler
@@ -15,12 +16,9 @@ class InstanceHandler(Handler):
 
     def run(self, **kwargs):
         # check if already running
-        for key,value in kwargs:
-            print(key)
-            print(value)
 
+        self.logger.warning(json.dumps(kwargs))
         event = kwargs['event']
-
         env_vars = self.retrieve(event, 'stage-variables', 'payload')
         running_db_name = self.retrieve_with_default(env_vars, 'running_db', '{}d43-catalog-running'.format(self.stage_prefix()))
 
