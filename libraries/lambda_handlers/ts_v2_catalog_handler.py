@@ -575,7 +575,7 @@ class TsV2CatalogHandler(InstanceHandler):
             for project in manifest['projects']:
                 pid = TsV2CatalogHandler.sanitize_identifier(project['identifier'])
                 # pid is project identifier, lid is language id, rid is resourceid
-                process_id = '_'.join([lid, rd, pid])
+                process_id = '_'.join([lid, rid, pid])
 
                 if process_id not in self.status['processed']:
                     self.logger.debug('Processing usfm for {}'.format(process_id))
