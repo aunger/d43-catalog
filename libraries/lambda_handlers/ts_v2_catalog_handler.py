@@ -574,7 +574,8 @@ class TsV2CatalogHandler(InstanceHandler):
             usx_dir = os.path.join(rc_dir, 'usx')
             for project in manifest['projects']:
                 pid = TsV2CatalogHandler.sanitize_identifier(project['identifier'])
-                process_id = '_'.join([lid, rid, pid])
+                # pid is project identifier, lid is language id, rid is resourceid
+                process_id = '_'.join([lid, rd, pid])
 
                 if process_id not in self.status['processed']:
                     self.logger.debug('Processing usfm for {}'.format(process_id))
@@ -599,6 +600,9 @@ class TsV2CatalogHandler(InstanceHandler):
                     self.status['processed'][process_id] = []
                     self.status['timestamp'] = time.strftime("%Y-%m-%dT%H:%M:%SZ")
                     self.db_handler.update_item({'api_version': TsV2CatalogHandler.api_version}, self.status)
+                else:
+                    self.logger.debug('USFM for {} has already been processed'.format(process_id))
+
 
     def _upload_all(self, uploads):
         """
