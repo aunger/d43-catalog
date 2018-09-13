@@ -128,7 +128,7 @@ class TsV2CatalogHandler(InstanceHandler):
                         if not rc_format and get_rc_type(format):
                             # locate rc_format (for multi-project RCs)
                             rc_format = format
-
+                        #res is resource, rid is resource id, lid is language id
                         self._process_usfm(lid, rid, res, format)
 
                         # TRICKY: bible notes and questions are in the resource
@@ -596,6 +596,7 @@ class TsV2CatalogHandler(InstanceHandler):
                     path = os.path.normpath(os.path.join(usx_dir, '{}.usx'.format(pid.upper())))
                     source = build_json_source_from_usx(path, format['modified'], self)
                     upload = prep_data_upload('{}/{}/{}/v{}/source.json'.format(pid, lid, rid, resource['version']), source['source'], self.temp_dir)
+                    self.logger.debug('Uploading {}/{}/{}'.format(self.cdn_bucket, TsV2CatalogHandler.cdn_root_path, upload['key']))
                     self.cdn_handler.upload_file(upload['path'], '{}/{}'.format(TsV2CatalogHandler.cdn_root_path, upload['key']))
 
                     self.status['processed'][process_id] = []
