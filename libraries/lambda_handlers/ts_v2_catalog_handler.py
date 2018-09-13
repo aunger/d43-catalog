@@ -567,6 +567,7 @@ class TsV2CatalogHandler(InstanceHandler):
 
         format_str = format['format']
         if 'application/zip' in format_str and 'usfm' in format_str:
+            self.logger.debug('Downloading {}'.format(format['url']))
             rc_dir = download_rc(lid, rid, format['url'], self.temp_dir, self.download_file)
             if not rc_dir: return
 
