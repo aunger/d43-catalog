@@ -21,10 +21,13 @@ class ForkHandler(InstanceHandler):
         self.from_email = self.retrieve(self.stage_vars, 'from_email', 'Environment Vars')
         self.to_email = self.retrieve(self.stage_vars, 'to_email', 'Environment Vars')
         self.stage = self.retrieve(self.stage_vars, 'stage', 'Environment Vars')
+
+        in_progress_db = self.retrieve_with_default(self.stage_vars, 'in_progress_db', '{}d43-catalog-in-progress'.format(self.stage_prefix()))
+
         if 'dynamodb_handler' in kwargs:
             self.progress_table = kwargs['dynamodb_handler']
         else:
-            self.progress_table = DynamoDBHandler('{}d43-catalog-in-progress'.format(self.stage_prefix()))  # pragma: no cover
+            self.progress_table = DynamoDBHandler(in_progress_db)  # pragma: no cover
         if 'gogs_client' in kwargs:
             self.gogs_client = kwargs['gogs_client']
         else:

@@ -41,6 +41,8 @@ class UwV2CatalogHandler(InstanceHandler):
         self.logger = logger # type: logging._loggerClass
         self.temp_dir = tempfile.mkdtemp('', 'uw_v2', None)
 
+        self.status_db = self.retrieve_with_default(env_vars, 'status_db', '{}d43-catalog-status'.format(self.stage_prefix()))
+
         if 's3_handler' in kwargs:
             self.cdn_handler = kwargs['s3_handler']
         else:
@@ -49,7 +51,7 @@ class UwV2CatalogHandler(InstanceHandler):
         if 'dynamodb_handler' in kwargs:
             self.db_handler = kwargs['dynamodb_handler']
         else:
-            self.db_handler = DynamoDBHandler('{}d43-catalog-status'.format(self.stage_prefix())) # pragma: no cover
+            self.db_handler = DynamoDBHandler(self.status_db) # pragma: no cover
 
         if 'url_handler' in kwargs:
             self.get_url = kwargs['url_handler']

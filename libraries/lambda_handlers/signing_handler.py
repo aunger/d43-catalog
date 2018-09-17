@@ -35,6 +35,9 @@ class SigningHandler(InstanceHandler):
         self.api_bucket = self.retrieve(env_vars, 'api_bucket', 'Environment Vars')
         self.logger = logger  # type: logging._loggerClass
         self.signer = signer
+
+        self.in_progress_db = self.retrieve_with_default(env_vars, 'in_progress_db', '{}d43-catalog-in-progress'.format(self.stage_prefix()))
+
         if 's3_handler' in kwargs:
             self.cdn_handler = kwargs['s3_handler']
         else:
@@ -45,7 +48,7 @@ class SigningHandler(InstanceHandler):
         if 'dynamodb_handler' in kwargs:
             self.db_handler = kwargs['dynamodb_handler']
         else:
-            self.db_handler = DynamoDBHandler('{}d43-catalog-in-progress'.format(self.stage_prefix()))  # pragma: no cover
+            self.db_handler = DynamoDBHandler(self.in_progress_db)  # pragma: no cover
         if 'download_handler' in kwargs:
             self.download_file = kwargs['download_handler']
         else:

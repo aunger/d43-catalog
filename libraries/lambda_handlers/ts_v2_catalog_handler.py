@@ -40,10 +40,7 @@ class TsV2CatalogHandler(InstanceHandler):
         self.from_email = self.retrieve(env_vars, 'from_email', 'Environment Vars')
         self.to_email = self.retrieve(env_vars, 'to_email', 'Environment Vars')
 
-        if 'catalog_db' in env_vars:
-            self.catalog_db = env_vars['catalog_db']
-        else:
-            self.catalog_db = None
+        self.status_db = self.retrieve_with_default(env_vars, 'status_db', '{}d43-catalog-status'.format(self.stage_prefix()))
 
         self.logger = logger # type: logging._loggerClass
         if 's3_handler' in kwargs:
@@ -53,10 +50,8 @@ class TsV2CatalogHandler(InstanceHandler):
         if 'dynamodb_handler' in kwargs:
             self.db_handler = kwargs['dynamodb_handler']
         else:
-            if self.catalog_db is None:
-                self.db_handler = DynamoDBHandler('{}d43-catalog-status'.format(self.stage_prefix())) # pragma: no cover
-            else:
-                self.db_handler = DynamoDBHandler(self.catalog_db) # pragma: no cover
+            self.db_handler = DynamoDBHandler(self.status_db) # pragma: no cover
+
         if 'url_handler' in kwargs:
             self.get_url = kwargs['url_handler']
         else:
@@ -133,7 +128,7 @@ class TsV2CatalogHandler(InstanceHandler):
                         if not rc_format and get_rc_type(format):
                             # locate rc_format (for multi-project RCs)
                             rc_format = format
-
+                        #res is resource, rid is resource id, lid is language id
                         self._process_usfm(lid, rid, res, format)
 
                         # TRICKY: bible notes and questions are in the resource
@@ -572,6 +567,7 @@ class TsV2CatalogHandler(InstanceHandler):
 
         format_str = format['format']
         if 'application/zip' in format_str and 'usfm' in format_str:
+            self.logger.debug('Downloading {}'.format(format['url']))
             rc_dir = download_rc(lid, rid, format['url'], self.temp_dir, self.download_file)
             if not rc_dir: return
 
@@ -579,6 +575,7 @@ class TsV2CatalogHandler(InstanceHandler):
             usx_dir = os.path.join(rc_dir, 'usx')
             for project in manifest['projects']:
                 pid = TsV2CatalogHandler.sanitize_identifier(project['identifier'])
+                # pid is project identifier, lid is language id, rid is resourceid
                 process_id = '_'.join([lid, rid, pid])
 
                 if process_id not in self.status['processed']:
@@ -599,11 +596,15 @@ class TsV2CatalogHandler(InstanceHandler):
                     path = os.path.normpath(os.path.join(usx_dir, '{}.usx'.format(pid.upper())))
                     source = build_json_source_from_usx(path, format['modified'], self)
                     upload = prep_data_upload('{}/{}/{}/v{}/source.json'.format(pid, lid, rid, resource['version']), source['source'], self.temp_dir)
+                    self.logger.debug('Uploading {}/{}/{}'.format(self.cdn_bucket, TsV2CatalogHandler.cdn_root_path, upload['key']))
                     self.cdn_handler.upload_file(upload['path'], '{}/{}'.format(TsV2CatalogHandler.cdn_root_path, upload['key']))
 
                     self.status['processed'][process_id] = []
                     self.status['timestamp'] = time.strftime("%Y-%m-%dT%H:%M:%SZ")
                     self.db_handler.update_item({'api_version': TsV2CatalogHandler.api_version}, self.status)
+                else:
+                    self.logger.debug('USFM for {} has already been processed'.format(process_id))
+
 
     def _upload_all(self, uploads):
         """

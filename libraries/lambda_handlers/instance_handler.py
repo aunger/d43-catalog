@@ -1,6 +1,7 @@
 # coding=utf-8
 
 from __future__ import unicode_literals, print_function
+import os
 from abc import ABCMeta
 from libraries.lambda_handlers.handler import Handler
 from libraries.tools.lambda_utils import is_lambda_running, set_lambda_running, lambda_min_remaining
@@ -15,7 +16,9 @@ class InstanceHandler(Handler):
 
     def run(self, **kwargs):
         # check if already running
-        running_db_name = '{}d43-catalog-running'.format(self.stage_prefix())
+
+        running_db_name = os.environ.get('RUNNINGDB')
+
         if is_lambda_running(self.context, running_db_name):
             min_remaining = lambda_min_remaining(self.context)
             self.logger.warning('Lambda started before last execution timed out ({}min). Aborting.'.format(round(min_remaining)))

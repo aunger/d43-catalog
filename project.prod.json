@@ -4,8 +4,10 @@
   "runtime": "python2.7",
   "memory": 512,
   "timeout": 300,
-  "role": "arn:aws:iam::581647696645:role/tx_lambda_function",
-  "environment": {},
+  "role": "arn:aws:iam::002723143144:role/tx_lambda_function",
+  "environment": {
+      "RUNNINGDB": "prod-catalog-running"
+  },
   "hooks": {
     "build": "pip install --upgrade -r ../../requirements.txt -t ."
   }
