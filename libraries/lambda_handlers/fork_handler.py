@@ -23,6 +23,7 @@ class ForkHandler(InstanceHandler):
         self.stage = self.retrieve(self.stage_vars, 'stage', 'Environment Vars')
 
         in_progress_db = self.retrieve_with_default(self.stage_vars, 'in_progress_db', '{}d43-catalog-in-progress'.format(self.stage_prefix()))
+        self.catalog_webhook = self.retrieve_with_default(self.stage_vars, 'catalog_webhook_lambda', '{}d43-catalog_webhook'.format(self.stage))
 
         if 'dynamodb_handler' in kwargs:
             self.progress_table = kwargs['dynamodb_handler']
@@ -71,7 +72,7 @@ class ForkHandler(InstanceHandler):
             try:
                 self.logger.info('Simulating Webhook for {}'.format(repo.full_name))
                 client.invoke(
-                    FunctionName='{}d43-catalog_webhook'.format(self.stage),
+                    FunctionName=self.catalog_webhook,
                     InvocationType='Event',
                     Payload=json.dumps(payload)
                 )
