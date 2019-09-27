@@ -34,6 +34,8 @@ class TsV2CatalogHandler(InstanceHandler):
     def __init__(self, event, context, logger, **kwargs):
         super(TsV2CatalogHandler, self).__init__(event, context)
 
+        self.max_file_size = 2000000
+
         env_vars = self.retrieve(event, 'stage-variables', 'payload')
         self.cdn_bucket = self.retrieve(env_vars, 'cdn_bucket', 'Environment Vars')
         self.cdn_url = self.retrieve(env_vars, 'cdn_url', 'Environment Vars').rstrip('/')
@@ -129,7 +131,10 @@ class TsV2CatalogHandler(InstanceHandler):
                             # locate rc_format (for multi-project RCs)
                             rc_format = format
                         #res is resource, rid is resource id, lid is language id
-                        self._process_usfm(lid, rid, res, format)
+                        process_id = '_'.join([lid, rid,'usfm'])
+                        if process_id not in self.status['processed']:
+                            self._process_usfm(lid, rid, res, format)
+                            finished_processes[process_id] = []
 
                         # TRICKY: bible notes and questions are in the resource
                         if rid != 'obs':
@@ -587,19 +592,26 @@ class TsV2CatalogHandler(InstanceHandler):
                         os.makedirs(usfm_dir)
                     usfm_dest_file = os.path.normpath(os.path.join(usfm_dir, project['path']))
                     usfm_src_file = os.path.normpath(os.path.join(rc_dir, project['path']))
-                    shutil.copyfile(usfm_src_file, usfm_dest_file)
 
-                    # transform usfm to usx
-                    build_usx(usfm_dir, usx_dir)
+                    if os.path.getsize(usfm_src_file) < self.max_file_size:
 
-                    # convert USX to JSON
-                    path = os.path.normpath(os.path.join(usx_dir, '{}.usx'.format(pid.upper())))
-                    source = build_json_source_from_usx(path, format['modified'], self)
-                    upload = prep_data_upload('{}/{}/{}/v{}/source.json'.format(pid, lid, rid, resource['version']), source['source'], self.temp_dir)
-                    self.logger.debug('Uploading {}/{}/{}'.format(self.cdn_bucket, TsV2CatalogHandler.cdn_root_path, upload['key']))
-                    self.cdn_handler.upload_file(upload['path'], '{}/{}'.format(TsV2CatalogHandler.cdn_root_path, upload['key']))
+                        shutil.copyfile(usfm_src_file, usfm_dest_file)
 
-                    self.status['processed'][process_id] = []
+                        # transform usfm to usx
+                        build_usx(usfm_dir, usx_dir)
+
+                        # convert USX to JSON
+                        path = os.path.normpath(os.path.join(usx_dir, '{}.usx'.format(pid.upper())))
+                        source = build_json_source_from_usx(path, format['modified'], self)
+                        upload = prep_data_upload('{}/{}/{}/v{}/source.json'.format(pid, lid, rid, resource['version']), source['source'], self.temp_dir)
+                        self.logger.debug('Uploading {}/{}/{}'.format(self.cdn_bucket, TsV2CatalogHandler.cdn_root_path, upload['key']))
+                        self.cdn_handler.upload_file(upload['path'], '{}/{}'.format(TsV2CatalogHandler.cdn_root_path, upload['key']))
+
+                        self.status['processed'][process_id] = []
+                    else:
+                        self.logger.debug("Skipping {} because it is too big".format(process_id))
+                        self.status['processed'][process_id] = ['skipped']
+
                     self.status['timestamp'] = time.strftime("%Y-%m-%dT%H:%M:%SZ")
                     self.db_handler.update_item({'api_version': TsV2CatalogHandler.api_version}, self.status)
                 else:
