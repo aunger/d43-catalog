@@ -366,8 +366,9 @@ class TsV2CatalogHandler(InstanceHandler):
             if not rc_dir: return {}
 
             tn_uploads = index_tn_rc(lid=lid,
-                                  temp_dir=self.temp_dir,
-                                  rc_dir=rc_dir)
+                                     temp_dir=self.temp_dir,
+                                     rc_dir=rc_dir)
+            remove(rc_dir, True)
 
         return tn_uploads
 
@@ -436,7 +437,7 @@ class TsV2CatalogHandler(InstanceHandler):
                     question_json.append({'date_modified': dc['modified'].replace('-', '')})
                     upload = prep_data_upload('{}/{}/questions.json'.format(pid, lid), question_json, self.temp_dir)
                     tq_uploads[tq_key] = upload
-
+            remove(rc_dir, True)
         return tq_uploads
 
 
@@ -545,6 +546,8 @@ class TsV2CatalogHandler(InstanceHandler):
                             'term': title.strip()
                         })
 
+            remove(rc_dir, True)
+
             if words:
                 words.append({
                     'date_modified': dc['modified'].replace('-', '').split('T')[0]
@@ -605,6 +608,8 @@ class TsV2CatalogHandler(InstanceHandler):
                 else:
                     self.logger.debug('USFM for {} has already been processed'.format(process_id))
 
+            # clean up download
+            remove(rc_dir, True)
 
     def _upload_all(self, uploads):
         """
