@@ -111,7 +111,7 @@ class ConsistencyChecker(object):
                 self.log_error("Format container for '{0}' doesn't have '{1}'".format(repo_name, key))
         if 'url' not in format or 'signature' not in format:
             return self.errors
-        if not format['url'] or not self._url_exists(format['url']):
+        if not format['url'] or not (self._url_exists(format['url']) and format['url'] != ''):
             self.log_error("{0}: url '{1}' does not exist".format(repo_name, format['url']))
         valid_hosts = [self.cdn_bucket, self.api_bucket]
         url_info = urlparse.urlparse(format['url'])
