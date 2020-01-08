@@ -200,6 +200,7 @@ class CatalogHandler(InstanceHandler):
         :return: True if the entry was successfully added otherwise False
         """
         #errors = checker.check(item)
+        errors = None
         if errors:
             return False
         dc = manifest['dublin_core']
