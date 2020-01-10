@@ -362,7 +362,7 @@ def tn_md_to_json_file(lid, temp_dir, rc_dir, manifest, reporter=None):
 
         if note_json:
             tn_key = '_'.join([lid, '*', pid, 'tn'])
-            note_json.append({'date_modified': dc['modified'].replace('-', '')})
+            note_json.append({'date_modified': str(dc['modified']).replace('-', '')})
             note_upload = prep_data_upload('{}/{}/notes.json'.format(pid, lid), note_json, temp_dir)
             tn_uploads[tn_key] = note_upload
 
