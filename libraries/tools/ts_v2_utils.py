@@ -470,6 +470,7 @@ def usx_to_json(usx, path='', reporter=None):
             if chp:
                 if fr_list:
                     fr_text = '\n'.join(fr_list)
+                    shouldAppendChunk = True
                     try:
                         matches = verse_re.search(fr_text)
                         if matches:
@@ -477,18 +478,19 @@ def usx_to_json(usx, path='', reporter=None):
                         else:
                             if reporter:
                                 reporter.report_error('failed to search for verse in string "{}" ({})'.format(fr_text, path))
-                            continue
+                            shouldAppendChunk = False
                     except AttributeError:
                         if reporter:
                             reporter.report_error('Unable to parse verses from chunk {}: {} ({})'.format(chp_num, fr_text, path))
-                        continue
-                    chp['frames'].append({'id': '{0}-{1}'.format(
-                        str(chp_num).zfill(2), first_vs.zfill(2)),
-                        'img': '',
-                        'format': 'usx',
-                        'text': fr_text,
-                        'lastvs': current_vs
-                    })
+                        shouldAppendChunk = False
+                    if shouldAppendChunk:
+                        chp['frames'].append({'id': '{0}-{1}'.format(
+                            str(chp_num).zfill(2), first_vs.zfill(2)),
+                            'img': '',
+                            'format': 'usx',
+                            'text': fr_text,
+                            'lastvs': current_vs
+                        })
                 chapters.append(chp)
             chp_num += 1
             chp = {'number': str(chp_num).zfill(2),
