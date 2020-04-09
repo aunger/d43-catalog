@@ -3,7 +3,7 @@
   "description": "Development Lambda functions for handling the Door43 Catalog",
   "runtime": "python2.7",
   "memory": 512,
-  "timeout": 300,
+  "timeout": 900,
   "role": "arn:aws:iam::581647696645:role/tx_lambda_function",
   "environment": {
       "RUNNINGDB": "v3-d43-catalog-running"
