@@ -2,7 +2,7 @@
   "name": "dev-d43-catalog",
   "description": "Development Lambda functions for handling the Door43 Catalog",
   "runtime": "python2.7",
-  "memory": 512,
+  "memory": 1024,
   "timeout": 300,
   "role": "arn:aws:iam::581647696645:role/tx_lambda_function",
   "environment": {
