@@ -335,6 +335,14 @@ def convert_chunk_markers(str):
     """
     return re.sub(r'\\ts\b', '\\s5', str)
 
+def remove_unknown_markers(str):
+    """
+    Removes tags unknown to our version of usfm-tools
+    :param str:
+    :return: the converted string
+    """
+    return re.sub(r'(\\)(\+?)(pn)(\*?)\b', '', str)
+
 def usfm3_to_usfm2(usfm3):
     """
     Converts a USFM 3 string to a USFM 2 compatible string
