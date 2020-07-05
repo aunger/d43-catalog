@@ -16,7 +16,7 @@ from libraries.lambda_handlers.handler import Handler
 from libraries.tools.file_utils import read_file, write_file
 from libraries.tools.url_utils import get_url
 from usfm_tools.transform import UsfmTransform
-from libraries.tools.usfm_utils import convert_chunk_markers, strip_word_data
+from libraries.tools.usfm_utils import convert_chunk_markers, strip_word_data, remove_unknown_markers
 
 def download_chunks(pid, dest):
     """
@@ -185,7 +185,7 @@ def build_usx(usfm_dir, usx_dir):
     for name in files:
         f = os.path.join(usfm_dir, name)
         usfm = read_file(f)
-        write_file(f, convert_chunk_markers(strip_word_data(usfm)))
+        write_file(f, remove_unknown_markers(convert_chunk_markers(strip_word_data(usfm))))
 
     UsfmTransform.buildUSX(usfm_dir, usx_dir, '', True)
 
