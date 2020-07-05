@@ -341,7 +341,11 @@ def remove_unknown_markers(str):
     :param str:
     :return: the converted string
     """
-    return re.sub(r'(\\)(\+?)(pn)(\*?)\b', '', str)
+    opening_slash_and_plus = r'(\\)(\+?)'
+    tags = r'(pn|fv)'
+    splat_and_boundary = r'(\*?)\b'
+    pattern = opening_slash_and_plus + tags + splat_and_boundary
+    return re.sub(pattern, '', str)
 
 def usfm3_to_usfm2(usfm3):
     """
