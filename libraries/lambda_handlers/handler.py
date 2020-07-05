@@ -35,6 +35,8 @@ class Handler(object):
         # Set up logger
         self.logger = logging.getLogger() # type: logging._loggerClass
         self.logger.setLevel(logging.DEBUG)
+        self.logger.addHandler(logging.StreamHandler())
+
         self.event = event
         self.context = context
 
