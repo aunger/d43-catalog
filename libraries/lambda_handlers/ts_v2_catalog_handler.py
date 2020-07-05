@@ -626,9 +626,10 @@ class TsV2CatalogHandler(InstanceHandler):
         :param upload:
         :return:
         """
-        self.cdn_handler.upload_file(upload['path'],
-                                     '{}/{}'.format(TsV2CatalogHandler.cdn_root_path,
-                                                    upload['key']))
+        path = upload['path']
+        key = '{}/{}'.format(TsV2CatalogHandler.cdn_root_path, upload['key'])
+        self.logger.debug('Uploading {}/{}'.format(path, key))
+        self.cdn_handler.upload_file(path, key)
 
     def _add_supplement(self, catalog, language, resource, project, modified, rc_type):
         """
