@@ -531,7 +531,7 @@ class TsV2CatalogHandler(InstanceHandler):
                         # TRICKY: we converted the ta urls, but now we need to format them as dokuwiki links
                         # e.g. [[en:ta:vol1:translate:translate_unknown | How to Translate Unknowns]]
                         for ta_link in ta_html_re.findall(word_content):
-                            new_link = '[[{} | {}]]'.format(ta_link[1], ta_link[2])
+                            new_link = u'[[{} | {}]]'.format(ta_link[1], ta_link[2])
                             word_content = word_content.replace(ta_link[0], new_link)
 
                         words.append({
