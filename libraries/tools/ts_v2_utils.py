@@ -19,7 +19,7 @@ from libraries.tools.url_utils import get_url
 from usfm_tools.transform import UsfmTransform
 from libraries.tools.usfm_utils import convert_chunk_markers, strip_word_data
 
-def download_chunks(pid, dest):
+def download_chunks(pid):
     """
     Downloads the chunks for the bible book
     :param pid:
@@ -99,8 +99,7 @@ def tn_tsv_to_json_file(lid, temp_dir, rc_dir, manifest, reporter=None):
         # collect chunk data
         if pid != 'obs':
             try:
-                data = get_url('https://cdn.door43.org/bible/txt/1/{}/chunks.json'.format(pid))
-                chunks = index_chunks(json.loads(data))
+                chunks = index_chunks(download_chunks(pid))
             except:
                 if reporter:
                     reporter.report_error('Failed to retrieve chunk information for {}-{}'.format(lid, pid))
@@ -252,8 +251,7 @@ def tn_md_to_json_file(lid, temp_dir, rc_dir, manifest, reporter=None):
         chunk_json = []
         if pid != 'obs':
             try:
-                data = get_url('https://cdn.door43.org/bible/txt/1/{}/chunks.json'.format(pid))
-                chunk_json = index_chunks(json.loads(data))
+                chunk_json = index_chunks(download_chunks(pid))
             except:
                 if reporter:
                     reporter.report_error('Failed to retrieve chunk information for {}-{}'.format(lid, pid))
