@@ -34,13 +34,12 @@ class TsV2CatalogHandler(InstanceHandler):
     def __init__(self, event, context, logger, **kwargs):
         super(TsV2CatalogHandler, self).__init__(event, context)
 
-        self.max_file_size = 2000000
-
         env_vars = self.retrieve(event, 'stage-variables', 'payload')
         self.cdn_bucket = self.retrieve(env_vars, 'cdn_bucket', 'Environment Vars')
         self.cdn_url = self.retrieve(env_vars, 'cdn_url', 'Environment Vars').rstrip('/')
         self.from_email = self.retrieve(env_vars, 'from_email', 'Environment Vars')
         self.to_email = self.retrieve(env_vars, 'to_email', 'Environment Vars')
+        self.max_usfm_size = int(self.retrieve_with_default(env_vars, 'max_usfm_size', '2000000'))
 
         self.status_db = self.retrieve_with_default(env_vars, 'status_db', '{}d43-catalog-status'.format(self.stage_prefix()))
 
@@ -593,7 +592,7 @@ class TsV2CatalogHandler(InstanceHandler):
                     usfm_dest_file = os.path.normpath(os.path.join(usfm_dir, project['path']))
                     usfm_src_file = os.path.normpath(os.path.join(rc_dir, project['path']))
 
-                    if os.path.getsize(usfm_src_file) < self.max_file_size:
+                    if os.path.getsize(usfm_src_file) < self.max_usfm_size:
 
                         shutil.copyfile(usfm_src_file, usfm_dest_file)
 
