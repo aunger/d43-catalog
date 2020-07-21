@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
-
 import copy
 import json
 import os
@@ -200,7 +198,6 @@ class CatalogHandler(InstanceHandler):
         :return: True if the entry was successfully added otherwise False
         """
         #errors = checker.check(item)
-        print("Checking here")
         errors = []
         if errors:
             return False

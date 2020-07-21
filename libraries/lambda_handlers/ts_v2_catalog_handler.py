@@ -230,7 +230,7 @@ class TsV2CatalogHandler(InstanceHandler):
                     modified = make_legacy_date(rc_format['modified'])
                     rc_type = get_rc_type(rc_format)
 
-                    print 'Resource container type is {}'.format(rc_type)
+                    self.logger.debug('Resource container type is {}'.format(rc_type))
 
                     if modified is None:
                         modified = time.strftime('%Y%m%d')
@@ -598,7 +598,7 @@ class TsV2CatalogHandler(InstanceHandler):
                         shutil.copyfile(usfm_src_file, usfm_dest_file)
 
                         # transform usfm to usx
-                        build_usx(usfm_dir, usx_dir)
+                        build_usx(usfm_dir, usx_dir, self.logger)
 
                         # convert USX to JSON
                         path = os.path.normpath(os.path.join(usx_dir, '{}.usx'.format(pid.upper())))

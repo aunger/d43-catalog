@@ -384,7 +384,7 @@ def prep_data_upload(key, data, temp_dir):
     }
 
 
-def build_usx(usfm_dir, usx_dir):
+def build_usx(usfm_dir, usx_dir, logger=None):
     """
     Builds the usx from usfm after performing some custom processing
     :param usfm_dir:
@@ -398,7 +398,8 @@ def build_usx(usfm_dir, usx_dir):
         usfm = read_file(f)
         write_file(f, convert_chunk_markers(strip_word_data(usfm)))
 
-    print("Actual USX conversion")
+    if logger:
+        logger.debug("Actual USX conversion into {}".format(usx_dir))
     UsfmTransform.buildUSX(usfm_dir, usx_dir, '', True)
 
 
