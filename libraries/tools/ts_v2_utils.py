@@ -218,13 +218,11 @@ def pad_to_match(num, matches, max_len=3):
     :param max_len: the maximum length to zfill
     :return: the z-filled number if a match was found otherwise the original value
     """
-    padded_num = '{}'.format(num)
-    while len(padded_num) < max_len and padded_num not in matches:
-        padded_num = padded_num.zfill(len(padded_num) + 1)
-        if padded_num in matches:
-            return padded_num
-    return '{}'.format(num)
-
+    num = str(num)
+    lengths = xrange(len(num), max_len + 1)
+    padded_nums = (num.zfill(length) for length in lengths)
+    matched = (n for n in padded_nums if n in matches)
+    return next(matched, num)
 
 def tn_md_to_json_file(lid, temp_dir, rc_dir, manifest, reporter=None):
     """
@@ -291,24 +289,14 @@ def tn_md_to_json_file(lid, temp_dir, rc_dir, manifest, reporter=None):
                 general_notes = note_general_re.search(verse_body)
 
                 # zero pad chapter to match chunking scheme
-                padded_chapter = chapter
-                while len(padded_chapter) < 3 and padded_chapter not in chunk_json:
-                    padded_chapter = padded_chapter.zfill(len(padded_chapter) + 1)
-                    # keep padding if match is found
-                    if padded_chapter in chunk_json:
-                        chapter = padded_chapter
+                chapter = pad_to_match(chapter, chunk_json)
 
                 # validate chapters
                 if pid != 'obs' and chapter not in chunk_json:
                     raise Exception('Missing chapter "{}" key in chunk json while reading chunks for {}. RC: {}'.format(chapter, pid, rc_dir))
 
                 # zero pad verse to match chunking scheme
-                padded_verse = verse
-                while len(padded_verse) < 3 and chapter in chunk_json and padded_verse not in chunk_json[chapter]:
-                    padded_verse = padded_verse.zfill(len(padded_verse) + 1)
-                    # keep padding if match is found
-                    if padded_verse in chunk_json[chapter]:
-                        verse = padded_verse
+                verse = pad_to_match(verse, chunk_json[chapter])
 
                 # close chunk
                 chapter_key = chapter
