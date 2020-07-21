@@ -608,7 +608,7 @@ class TsV2CatalogHandler(InstanceHandler):
 
                         self.status['processed'][process_id] = []
                     else:
-                        self.logger.debug("Skipping {} because it is too big".format(process_id))
+                        self.logger.warn("Skipping {} because it is too big".format(process_id))
                         self.status['processed'][process_id] = ['skipped']
 
                     self.status['timestamp'] = time.strftime("%Y-%m-%dT%H:%M:%SZ")
