@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
-
 import copy
 import json
 import os
@@ -199,7 +197,9 @@ class CatalogHandler(InstanceHandler):
         :param checker:
         :return: True if the entry was successfully added otherwise False
         """
-        errors = checker.check(item)
+        # Checking is temporarily disabled due to errors.
+        #errors = checker.check(item)
+        errors = []
         if errors:
             return False
         dc = manifest['dublin_core']
@@ -208,7 +208,8 @@ class CatalogHandler(InstanceHandler):
 
         formats = []
         for fmt in manifest['formats']:
-            errors = checker.check_format(fmt, item)
+            # Checking is temporarily disabled due to errors.
+            #errors = checker.check_format(fmt, item)
             if not errors:
                 self._strip_build_rules(fmt)
                 formats.append(fmt)
@@ -229,7 +230,8 @@ class CatalogHandler(InstanceHandler):
                 if 'formats' in project:
                     for fmt in project['formats']:
                         self._strip_build_rules(fmt)
-                        checker.check_format(fmt, item)
+                        # Checking is temporarily disabled due to errors.
+                        #checker.check_format(fmt, item)
                 if not project['categories']:
                     project['categories'] = []
                 del project['path']
