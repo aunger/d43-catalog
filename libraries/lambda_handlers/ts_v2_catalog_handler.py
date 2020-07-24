@@ -51,7 +51,8 @@ class TsV2CatalogHandler(InstanceHandler):
             self.db_handler = kwargs['dynamodb_handler']
         else:
             self.db_handler = DynamoDBHandler(self.status_db) # pragma: no cover
-
+            if self.db_handler.logger:
+                self.db_handler.logger.setLevel(logger.level)
         if 'url_handler' in kwargs:
             self.get_url = kwargs['url_handler']
         else:
