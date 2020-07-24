@@ -246,7 +246,7 @@ def tn_md_to_json_file(lid, temp_dir, rc_dir, manifest, reporter=None):
 
     for project in manifest['projects']:
         pid = Handler.sanitize_identifier(project['identifier'])
-        chunk_json = []
+        chunk_json = {}
         if pid != 'obs':
             try:
                 chunk_json = index_chunks(download_chunks(pid))
