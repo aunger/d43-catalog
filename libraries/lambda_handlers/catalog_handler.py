@@ -197,6 +197,7 @@ class CatalogHandler(InstanceHandler):
         :param checker:
         :return: True if the entry was successfully added otherwise False
         """
+        # Checking is temporarily disabled due to errors.
         #errors = checker.check(item)
         errors = []
         if errors:
@@ -207,6 +208,7 @@ class CatalogHandler(InstanceHandler):
 
         formats = []
         for fmt in manifest['formats']:
+            # Checking is temporarily disabled due to errors.
             #errors = checker.check_format(fmt, item)
             if not errors:
                 self._strip_build_rules(fmt)
@@ -228,6 +230,7 @@ class CatalogHandler(InstanceHandler):
                 if 'formats' in project:
                     for fmt in project['formats']:
                         self._strip_build_rules(fmt)
+                        # Checking is temporarily disabled due to errors.
                         #checker.check_format(fmt, item)
                 if not project['categories']:
                     project['categories'] = []
