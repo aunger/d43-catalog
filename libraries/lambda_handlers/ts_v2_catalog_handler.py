@@ -51,7 +51,8 @@ class TsV2CatalogHandler(InstanceHandler):
             self.db_handler = kwargs['dynamodb_handler']
         else:
             self.db_handler = DynamoDBHandler(self.status_db) # pragma: no cover
-
+            if self.db_handler.logger:
+                self.db_handler.logger.setLevel(logger.level)
         if 'url_handler' in kwargs:
             self.get_url = kwargs['url_handler']
         else:
@@ -626,9 +627,10 @@ class TsV2CatalogHandler(InstanceHandler):
         :param upload:
         :return:
         """
-        self.cdn_handler.upload_file(upload['path'],
-                                     '{}/{}'.format(TsV2CatalogHandler.cdn_root_path,
-                                                    upload['key']))
+        path = upload['path']
+        key = '{}/{}'.format(TsV2CatalogHandler.cdn_root_path, upload['key'])
+        self.logger.debug('Uploading {}/{}'.format(path, key))
+        self.cdn_handler.upload_file(path, key)
 
     def _add_supplement(self, catalog, language, resource, project, modified, rc_type):
         """
