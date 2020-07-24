@@ -268,6 +268,15 @@ def tn_md_to_json_file(lid, temp_dir, rc_dir, manifest, reporter=None):
             verses = os.listdir(chapter_dir)
             verses.sort()
 
+            # zero pad chapter to match chunking scheme
+            chapter = pad_to_match(chapter, chunk_json)
+            chapter_chunk_json = chunk_json.get(chapter, {})
+
+            # validate chapters
+            if pid != 'obs' and chapter not in chunk_json:
+                raise Exception('Missing chapter "{}" key in chunk json while reading chunks for {}. RC: {}' \
+                    .format(chapter, pid, rc_dir))
+
             notes = []
             firstvs = None
             note_hashes = []
@@ -288,28 +297,16 @@ def tn_md_to_json_file(lid, temp_dir, rc_dir, manifest, reporter=None):
                 verse_body = convert_rc_links(verse_body)
                 general_notes = note_general_re.search(verse_body)
 
-                # zero pad chapter to match chunking scheme
-                chapter = pad_to_match(chapter, chunk_json)
-
-                # validate chapters
-                if pid != 'obs' and chapter not in chunk_json:
-                    raise Exception('Missing chapter "{}" key in chunk json while reading chunks for {}. RC: {}'.format(chapter, pid, rc_dir))
-
                 # zero pad verse to match chunking scheme
-                verse = pad_to_match(verse, chunk_json[chapter])
+                verse = pad_to_match(verse, chapter_chunk_json)
 
                 # close chunk
-                chapter_key = chapter
-                if firstvs is not None and (pid != 'obs' and chapter_key not in chunk_json):
-                    # attempt to recover if Psalms
-                    if pid == 'psa':
-                        chapter_key = chapter_key.zfill(3)
-                    else:
-                        if reporter:
-                            reporter.report_error(
-                                'Could not find chunk data for {} {} {}'.format(rc_dir, pid, chapter_key))
+                if firstvs is not None and (pid != 'obs' and not chapter_chunk_json):
+                    if reporter:
+                        reporter.report_error(
+                            'Could not find chunk data for {} {} {}'.format(rc_dir, pid, chapter))
 
-                if firstvs is not None and (pid == 'obs' or verse in chunk_json[chapter_key]):
+                if firstvs is not None and (pid == 'obs' or verse in chapter_chunk_json):
                     note_json.append({
                         'id': '{}-{}'.format(chapter, firstvs),
                         'tn': notes
