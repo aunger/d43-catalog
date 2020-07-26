@@ -33,9 +33,9 @@ class Handler(object):
         logging.getLogger('usfm_tools').setLevel(logging.WARNING)
 
         # Set up logger
+        logging.basicConfig()
         self.logger = logging.getLogger() # type: logging._loggerClass
         self.logger.setLevel(logging.DEBUG)
-        self.logger.addHandler(logging.StreamHandler())
 
         self.event = event
         self.context = context
