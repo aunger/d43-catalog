@@ -495,7 +495,10 @@ def usx_to_json(usx, path='', reporter=None):
                 rest_of_line = line.replace(chunk_marker, '')
 
                 # append the text to the previous line, removing the unnecessary \n
-                fr_list[-1] = fr_list[-1][:-1] + rest_of_line
+                if fr_list:
+                    fr_list[-1] = fr_list[-1][:-1] + rest_of_line
+                else:
+                    fr_list.append(rest_of_line)
 
             if fr_list:
                 fr_text = '\n'.join(fr_list)
