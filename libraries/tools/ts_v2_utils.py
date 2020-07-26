@@ -11,6 +11,7 @@ import os
 import json
 import yaml
 import hashlib
+import csv
 
 from libraries.lambda_handlers.handler import Handler
 from libraries.tools.file_utils import read_file, write_file
@@ -18,7 +19,7 @@ from libraries.tools.url_utils import get_url
 from usfm_tools.transform import UsfmTransform
 from libraries.tools.usfm_utils import convert_chunk_markers, strip_word_data
 
-def download_chunks(pid, dest):
+def download_chunks(pid):
     """
     Downloads the chunks for the bible book
     :param pid:
@@ -46,7 +47,10 @@ def index_chunks(chunks):
 def index_tn_rc(lid, temp_dir, rc_dir, reporter=None):
     """
     Converts a v3 tN into it's v2 equivalent.
-    This will write a bunch of files and return a list of files to be uploaded
+    This will write a bunch of files and return a list of files to be uploaded.
+
+    Chunk definitions will be used to validate the note organization.
+
     :param lid: the language id of the notes
     :param temp_dir: the directory where all the files will be written
     :param rc_dir: the directory of the resource container
@@ -54,20 +58,198 @@ def index_tn_rc(lid, temp_dir, rc_dir, reporter=None):
     :type reporter: Handler
     :return: a list of note files to upload
     """
+    manifest = yaml.load(read_file(os.path.join(rc_dir, 'manifest.yaml')))
+    content_format = manifest['dublin_core']['format']
+    if content_format == 'text/markdown':
+        return tn_md_to_json_file(lid, temp_dir, rc_dir, manifest, reporter)
+    elif content_format == 'text/tsv':
+        return tn_tsv_to_json_file(lid, temp_dir, rc_dir, manifest, reporter)
+    elif reporter:
+        reporter.report_error("Unsupported content type '{}' found in {}".format(content_format, rc_dir))
+        raise Exception("Unsupported content type '{}' found in {}".format(content_format, rc_dir))
+
+
+def tn_tsv_to_json_file(lid, temp_dir, rc_dir, manifest, reporter=None):
+    """
+    Converts a tsv tN to json
+    This will write a bunch of files and return a list of files to be uploaded.
+
+    Chunk definitions will be used to validate the note organization.
+
+    :param lid: the language id of the notes
+    :param temp_dir: the directory where all the files will be written
+    :param rc_dir: the directory of the resource container
+    :param manifest: the rc manifest data
+    :param reporter: a lambda handler used for reporting
+    :type reporter: Handler
+    :return: a list of note files to upload
+    """
+    dc = manifest['dublin_core']
+    tn_uploads = {}
+
+    for project in manifest['projects']:
+        pid = Handler.sanitize_identifier(project['identifier'])
+        chunks = []
+
+        # verify project file exists
+        note_file = os.path.normpath(os.path.join(rc_dir, project['path']))
+        if not os.path.exists(note_file):
+            raise Exception('Could not find translationNotes file at {}'.format(note_file))
+
+        # collect chunk data
+        if pid != 'obs':
+            try:
+                chunks = index_chunks(download_chunks(pid))
+            except:
+                if reporter:
+                    reporter.report_error('Failed to retrieve chunk information for {}-{}'.format(lid, pid))
+                continue
+
+        # convert
+        with open(note_file, 'rb') as tsvin:
+            tsv = csv.DictReader(tsvin, dialect='excel-tab')
+            note_json = tn_tsv_to_json(tsv, chunks)
+
+        if note_json:
+            tn_key = '_'.join([lid, '*', pid, 'tn'])
+            note_json.append({'date_modified': dc['modified'].replace('-', '')})
+            note_upload = prep_data_upload('{}/{}/notes.json'.format(pid, lid), note_json, temp_dir)
+            tn_uploads[tn_key] = note_upload
+
+    return tn_uploads
+
+
+def tn_tsv_to_json(tsv, chunks):
+    """
+    Converts a tsv dictionary to a json object
+    :param tsv: a tsv dictionary
+    :param chunks: a dictionary of chunk data used to group notes
+    :return: a json object
+    """
+    current_chapter = None
+    current_chunk_verse = None
+    current_chunk = None
+    json = []
+    for row in tsv:
+        try:
+            chapter = int(row['Chapter'])
+            verse = int(row['Verse'])
+        except ValueError:
+            # collect book and chapter intro notes
+            if current_chunk is not None:
+                json.append(current_chunk)
+                current_chunk = None
+
+            chapter = row['Chapter']
+            verse = row['Verse']
+
+            if verse == 'intro':
+                verse = 'title'  # TRICKY: tS uses 'title' instead of intro
+            else:
+                # whatever the verse is it's not supported
+                continue
+
+            if isinstance(chapter, int):
+                chapter = int(chapter)
+            if chapter == 'front':
+                pass
+            else:
+                try:
+                    chapter = int(chapter)
+                    chapter = pad_to_match(chapter, chunks)
+                    if chapter not in chunks:
+                        raise Exception('Missing chapter "{}" key in chunk json'.format(chapter))
+                except ValueError:
+                    # whatever the chapter is it's not supported
+                    continue
+
+            if row['GLQuote']:
+                ref = row['GLQuote']
+            else:
+                ref = 'General Information'
+
+            json.append({
+                'id': '{}-{}'.format(chapter, verse),
+                'tn': [{
+                    'ref': ref,
+                    'text': row['OccurrenceNote']
+                }]
+            })
+            continue
+
+        # zero pad numbers to match chunk scheme
+        chapter = pad_to_match(chapter, chunks)
+        if chapter not in chunks:
+            raise Exception('Missing chapter "{}" key in chunk json'.format(chapter))
+
+        verse = pad_to_match(verse, chunks[chapter])
+
+        # prepare next note chunk
+        verse_starts_chunk = verse in chunks[chapter]
+        chunk_is_finished = current_chunk_verse != verse
+        if current_chapter != chapter or (chunk_is_finished and verse_starts_chunk):
+            current_chapter = chapter
+            current_chunk_verse = verse
+            if current_chunk is not None:
+                json.append(current_chunk)
+            current_chunk = {
+                'id': '{}-{}'.format(chapter, current_chunk_verse),
+                'tn': []
+            }
+
+        # collect notes
+        current_chunk['tn'].append({
+            'ref': row['GLQuote'],
+            'text': row['OccurrenceNote']
+        })
+
+    # close last chunk
+    if current_chunk is not None:
+        json.append(current_chunk)
+
+    return json
+
+
+def pad_to_match(num, matches, max_len=3):
+    """
+    z-fills a number until a match has been found.
+    :param num: the number to zfill
+    :param matches: the available matches
+    :param max_len: the maximum length to zfill
+    :return: the z-filled number if a match was found otherwise the original value
+    """
+    num = str(num)
+    lengths = xrange(len(num), max_len + 1)
+    padded_nums = (num.zfill(length) for length in lengths)
+    matched = (n for n in padded_nums if n in matches)
+    return next(matched, num)
+
+def tn_md_to_json_file(lid, temp_dir, rc_dir, manifest, reporter=None):
+    """
+    Converts a markdown tN to json
+    This will write a bunch of files and return a list of files to be uploaded.
+
+    Chunk definitions will be used to validate the note organization.
+
+    :param lid: the language id of the notes
+    :param temp_dir: the directory where all the files will be written
+    :param rc_dir: the directory of the resource container
+    :param manifest: the rc manifest data
+    :param reporter: a lambda handler used for reporting
+    :type reporter: Handler
+    :return: a list of note files to upload
+    """
+    dc = manifest['dublin_core']
     note_general_re = re.compile('^([^#]+)', re.UNICODE)
     note_re = re.compile('^#+([^#\n]+)#*([^#]*)', re.UNICODE | re.MULTILINE | re.DOTALL)
     tn_uploads = {}
 
-    manifest = yaml.load(read_file(os.path.join(rc_dir, 'manifest.yaml')))
-    dc = manifest['dublin_core']
-
     for project in manifest['projects']:
         pid = Handler.sanitize_identifier(project['identifier'])
-        chunk_json = []
+        chunk_json = {}
         if pid != 'obs':
             try:
-                data = get_url('https://cdn.door43.org/bible/txt/1/{}/chunks.json'.format(pid))
-                chunk_json = index_chunks(json.loads(data))
+                chunk_json = index_chunks(download_chunks(pid))
             except:
                 if reporter:
                     reporter.report_error('Failed to retrieve chunk information for {}-{}'.format(lid, pid))
@@ -76,43 +258,55 @@ def index_tn_rc(lid, temp_dir, rc_dir, reporter=None):
         note_dir = os.path.normpath(os.path.join(rc_dir, project['path']))
         note_json = []
         if not os.path.exists(note_dir):
-            raise Exception('Project directory missing. Could not find {}'.format(note_dir))
+            raise Exception('Could not find translationNotes directory at {}'.format(note_dir))
         chapters = os.listdir(note_dir)
 
         for chapter in chapters:
-            if chapter in ['.', '..', 'front']:
+            if chapter in ['.', '..', 'front', '.DS_Store']:
                 continue
             chapter_dir = os.path.join(note_dir, chapter)
             verses = os.listdir(chapter_dir)
             verses.sort()
 
+            # zero pad chapter to match chunking scheme
+            chapter = pad_to_match(chapter, chunk_json)
+            chapter_chunk_json = chunk_json.get(chapter, {})
+
+            # validate chapters
+            if pid != 'obs' and chapter not in chunk_json:
+                raise Exception('Missing chapter "{}" key in chunk json while reading chunks for {}. RC: {}' \
+                    .format(chapter, pid, rc_dir))
+
             notes = []
             firstvs = None
             note_hashes = []
             for verse in verses:
-                if verse in ['.', '..', 'intro.md']:
+                if verse in ['.', '..', 'intro.md', '.DS_Store']:
                     continue
 
                 # notes = []
                 verse_file = os.path.join(chapter_dir, verse)
                 verse = verse.split('.')[0]
-                verse_body = read_file(verse_file)
+                try:
+                    verse_body = read_file(verse_file)
+                except Exception as e:
+                    if reporter:
+                        reporter.report_error('Failed to read file {}'.format(verse_file))
+                    raise e
 
                 verse_body = convert_rc_links(verse_body)
                 general_notes = note_general_re.search(verse_body)
 
-                # close chunk
-                chapter_key = chapter
-                if firstvs is not None and (pid != 'obs' and chapter_key not in chunk_json):
-                    # attempt to recover if Psalms
-                    if pid == 'psa':
-                        chapter_key = chapter_key.zfill(3)
-                    else:
-                        if reporter:
-                            reporter.report_error(
-                                'Could not find chunk data for {} {} {}'.format(rc_dir, pid, chapter_key))
+                # zero pad verse to match chunking scheme
+                verse = pad_to_match(verse, chapter_chunk_json)
 
-                if firstvs is not None and (pid == 'obs' or verse in chunk_json[chapter_key]):
+                # close chunk
+                if firstvs is not None and (pid != 'obs' and not chapter_chunk_json):
+                    if reporter:
+                        reporter.report_error(
+                            'Could not find chunk data for {} {} {}'.format(rc_dir, pid, chapter))
+
+                if firstvs is not None and (pid == 'obs' or verse in chapter_chunk_json):
                     note_json.append({
                         'id': '{}-{}'.format(chapter, firstvs),
                         'tn': notes
@@ -151,7 +345,7 @@ def index_tn_rc(lid, temp_dir, rc_dir, reporter=None):
 
         if note_json:
             tn_key = '_'.join([lid, '*', pid, 'tn'])
-            note_json.append({'date_modified': dc['modified'].replace('-', '')})
+            note_json.append({'date_modified': str(dc['modified']).replace('-', '')})
             note_upload = prep_data_upload('{}/{}/notes.json'.format(pid, lid), note_json, temp_dir)
             tn_uploads[tn_key] = note_upload
 
@@ -173,7 +367,7 @@ def prep_data_upload(key, data, temp_dir):
     }
 
 
-def build_usx(usfm_dir, usx_dir):
+def build_usx(usfm_dir, usx_dir, logger=None):
     """
     Builds the usx from usfm after performing some custom processing
     :param usfm_dir:
@@ -187,6 +381,8 @@ def build_usx(usfm_dir, usx_dir):
         usfm = read_file(f)
         write_file(f, convert_chunk_markers(strip_word_data(usfm)))
 
+    if logger:
+        logger.debug("Actual USX conversion into {}".format(usx_dir))
     UsfmTransform.buildUSX(usfm_dir, usx_dir, '', True)
 
 
@@ -258,6 +454,7 @@ def usx_to_json(usx, path='', reporter=None):
             if chp:
                 if fr_list:
                     fr_text = '\n'.join(fr_list)
+                    shouldAppendChunk = True
                     try:
                         matches = verse_re.search(fr_text)
                         if matches:
@@ -265,18 +462,19 @@ def usx_to_json(usx, path='', reporter=None):
                         else:
                             if reporter:
                                 reporter.report_error('failed to search for verse in string "{}" ({})'.format(fr_text, path))
-                            continue
+                            shouldAppendChunk = False
                     except AttributeError:
                         if reporter:
                             reporter.report_error('Unable to parse verses from chunk {}: {} ({})'.format(chp_num, fr_text, path))
-                        continue
-                    chp['frames'].append({'id': '{0}-{1}'.format(
-                        str(chp_num).zfill(2), first_vs.zfill(2)),
-                        'img': '',
-                        'format': 'usx',
-                        'text': fr_text,
-                        'lastvs': current_vs
-                    })
+                        shouldAppendChunk = False
+                    if shouldAppendChunk:
+                        chp['frames'].append({'id': '{0}-{1}'.format(
+                            str(chp_num).zfill(2), first_vs.zfill(2)),
+                            'img': '',
+                            'format': 'usx',
+                            'text': fr_text,
+                            'lastvs': current_vs
+                        })
                 chapters.append(chp)
             chp_num += 1
             chp = {'number': str(chp_num).zfill(2),
