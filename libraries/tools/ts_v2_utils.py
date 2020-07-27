@@ -603,7 +603,7 @@ def convert_rc_links(content, logger=None):
                     logger.warning(
                         'volume not found for {} while parsing link {}. Defaulting to vol1'.format(module, link[0]))
                 vol = 'vol1'
-            new_link = ':{}:{}:{}:{}:{}'.format(lid, rid, vol, pid, module)
+            new_link = u':{}:{}:{}:{}:{}'.format(lid, rid, vol, pid, module)
         if rid == 'ulb':
             pass
         if rid == 'udb':
